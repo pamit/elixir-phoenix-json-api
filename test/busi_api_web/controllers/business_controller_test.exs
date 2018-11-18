@@ -1,8 +1,11 @@
 defmodule BusiApiWeb.BusinessControllerTest do
   use BusiApiWeb.ConnCase
 
+  alias BusiApi.Repo
   alias BusiApi.Directory
   alias BusiApi.Directory.Business
+  alias BusiApi.Accounts
+  alias BusiApiWeb.Auth.Guardian
 
   @create_attrs %{description: "some description", name: "some name", tag: "some tag"}
   @update_attrs %{description: "some updated description", name: "some updated name", tag: "some updated tag"}
@@ -14,11 +17,18 @@ defmodule BusiApiWeb.BusinessControllerTest do
   end
 
   setup %{conn: conn} do
-    {:ok, conn: put_req_header(conn, "accept", "application/json")}
+    {:ok, user} = Accounts.create_user(%{email: "user@business.com", password: "123456"})
+    {:ok, token, _claims} = Guardian.encode_and_sign(user)
+
+    conn = conn 
+    |> put_req_header("accept", "application/json")
+    |> put_req_header("authorization", "Bearer " <> token)
+    {:ok, conn: conn}
   end
 
   describe "index" do
     test "lists all businesses", %{conn: conn} do
+      # IO.inspect(get_req_header(conn, "authorization"))
       conn = get conn, business_path(conn, :index)
       assert json_response(conn, 200)["data"] == []
     end
@@ -29,8 +39,7 @@ defmodule BusiApiWeb.BusinessControllerTest do
       conn = post conn, business_path(conn, :create), business: @create_attrs
       assert %{"id" => id} = json_response(conn, 201)["data"]
 
-      conn = get conn, business_path(conn, :show, id)
-      assert json_response(conn, 200)["data"] == %{
+      assert json_response(conn, 201)["data"] == %{
         "id" => id,
         "description" => "some description",
         "name" => "some name",
@@ -50,9 +59,6 @@ defmodule BusiApiWeb.BusinessControllerTest do
 
     test "renders business when data is valid", %{conn: conn, business: %Business{id: id} = business} do
       conn = put conn, business_path(conn, :update, business), business: @update_attrs
-      assert %{"id" => ^id} = json_response(conn, 200)["data"]
-
-      conn = get conn, business_path(conn, :show, id)
       assert json_response(conn, 200)["data"] == %{
         "id" => id,
         "description" => "some updated description",
@@ -74,9 +80,7 @@ defmodule BusiApiWeb.BusinessControllerTest do
     test "deletes chosen business", %{conn: conn, business: business} do
       conn = delete conn, business_path(conn, :delete, business)
       assert response(conn, 204)
-      assert_error_sent 404, fn ->
-        get conn, business_path(conn, :show, business)
-      end
+      assert Repo.get(Business, business.id) == nil
     end
   end
 
