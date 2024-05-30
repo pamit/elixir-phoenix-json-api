@@ -1,5 +1,7 @@
 # BusiApi
 
+[Building a RESTful API Backend with Authentication using Elixir Phoenix](https://pamit.medium.com/building-a-restful-backend-with-elixir-phoenix-84fe390975c)
+
 To start your Phoenix server:
 
   * Install dependencies with `mix deps.get`
